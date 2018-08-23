@@ -1,0 +1,309 @@
+// Copyright 2017, JAKARobot @ http://www.jakarobot.com/home/
+// All rights reserved.
+
+
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "io.grpc.jaka";
+option java_outer_classname = "jakaProto";
+option objc_class_prefix = "HLW";
+
+package jaka;
+
+//×××××××××××××××××××××××××××jaka robot grpc service definition××××××××××××××××//
+service Robot{
+  //Sends a greeting  保留测试用
+  rpc SayHello (HelloRequest) returns (HelloReply) {}
+  
+  //用于服务发现，向局域网内主机的grpc端口发出 RURobot调用，如果是机器人则回复robot信息
+  rpc RURobot(JAKAEmpty)returns (RobotInfo){}
+
+  //登录服务，通过RURobot得到某主机是机器人后，开始LogIn，目前LogIn仍然采用简单的密码认证
+  //后续可通过grpc支持的SSL证书认证 可参考 http://www.sandtable.com/using-ssl-with-grpc-in-python/
+  rpc LogIn(LogReq) returns (ExeReply){}
+
+  rpc LogOut(LogReq) returns (ExeReply){}
+
+  //用于请求文本框显示，后台应当每1S发送一次请求
+  rpc getPopUp(JAKAEmpty) returns (PopUpdef){}
+
+  //机器人包含多种状态，此函数用于改变机器人的状态
+  //EnumType中的typeid对应关系
+  //ESTOP	急停		1
+  //ESTOPREST	急停复位	2
+  //PWROFF	关闭电机电源	3
+  //PWRON	开启电机电源	4
+  rpc StateChange(EnumType)  returns (ExeReply) {}
+
+  // Four kinds of modes are supported:
+  // MODE_MANAUL -->  1
+  // MODE_AUTO   -->  2
+  // MODE_MDI    -->  3
+  // MODE_DRAG   -->  4
+  rpc ModeChange(EnumType) returns (ExeReply) {}
+  
+  //JogContinuous 连续Jog运动，发出此命令后，机器人指定关节会以一定速度运动，直至发出StateChange(NStop)
+  rpc JogCon (JogConRequest) returns (ExeReply) {}
+  //Axis Jog Continuous 笛卡尔空间连续Jog运动。发出此命令后，机器人末端会以一定速度运动，直至发出StateChange(NStop)
+  rpc AJogCon (JogConRequest) returns (ExeReply) {}
+
+  //Jog Increment 点动Jog运动，发出此命令后，机器人指定关节移动指定距离(一般很小)，到位后机器人自动停止
+  rpc JogIncr(JogIncrRequest) returns (ExeReply) {}
+ 
+  //Axis Jog Increment 点动Jog运动，发出此命令后，机器人末端移动指定距离(一般很小)，到位后机器人自动停止
+  rpc AJogIncr(JogIncrRequest) returns (ExeReply) {}
+ 
+  //SetDout 设定数字输出值
+  rpc SetDout (Dout) returns (ExeReply){}
+
+  //SetAout set the analog output
+  rpc SetAout (Aout) returns (ExeReply){}
+  
+  //执行作业文件。发出此命令后，机器人执行作业文件。
+  rpc ProgExecu(ProgFile) returns (ExeReply){}
+  
+  //在关节空间下(JointSpace)，移动至指定位置
+  rpc MovJ(MovJReq)returns (ExeReply){}
+
+  //Used to abort Movj Motion or executing program
+  rpc MtnAbort(JAKAEmpty) returns (ExeReply) {}
+
+  //回零指令，（可理解为让机器人回到某一预先设定的位置）
+  rpc Home (JAKAEmpty) returns (ExeReply){}
+
+  //Stop the JOG motion
+  rpc JogStop(JogStopReq) returns (ExeReply){}
+  
+  //Get the error text
+  rpc GetError(JAKAEmpty) returns (ErrorReply) {}
+
+  //Set robot tool offset
+  rpc SetToolOffset(ToolOffset) returns (ExeReply) {}
+
+  //Get robot tool offset
+  rpc GetToolOffset(JAKAEmpty) returns (ToolOffset) {}
+
+  //Pause the task
+  rpc Pause(JAKAEmpty) returns (ExeReply) {}
+
+  //Resume the task
+  rpc Resume(JAKAEmpty) returns (ExeReply) {}
+
+  //Switch between the teleop mode and free mode
+  rpc TeleopEnable(BoolState) returns (ExeReply) {}
+
+  //Set robot joint positive and negative limit
+  rpc SetJointLimit(JointLimitReq) returns (ExeReply) {}
+
+  //Get robot joint positive and negative limit
+  rpc GetJointLimit(JAKAEmpty) returns (JointLimitReq) {}
+
+  rpc SetTrajMaxVel(TrajMaxVelReq) returns (ExeReply) {}
+
+  rpc SetVelRate(VelRateReq) returns (ExeReply) {}
+
+  //Exit collision protective stop
+  rpc ExitProtectStat(JAKAEmpty) returns (ExeReply) {}
+
+  //Get currently loaded file
+  rpc GetCurrentFile(JAKAEmpty) returns (FileReply) {}
+
+  //Get the number of line that is now executing
+  rpc GetCurrentLine(JAKAEmpty) returns (LineReply) {}  
+
+  //Get the inverse kinematics result
+  rpc KineInverse(InvKineReq) returns (InvKineReply) {}
+
+  //Get the forward kinematics result
+  rpc KineForward(FwdKineReq) returns (FwdKineReply) {}
+
+  //check file md5
+  rpc CheckFileMd5(CheckMd5) returns (ExeReply) {}
+
+  //Switch between the servoj mode and free mode
+  rpc ServoJOpEnable(BoolState) returns (ExeReply) {}
+
+  rpc ServoJ(ServoJReq) returns (ExeReply) {}
+}
+
+
+
+//×××××××××××××××××××××××××××××××××××grpc message definition××××××××××××××××//
+//(message中的field名称使用全小写，否则编程可能会出现错误。)
+
+//JAKAEmpty 空消息 https://stackoverflow.com/questions/31768665/can-i-define-a-grpc-call-with-a-null-//request-or-response
+message JAKAEmpty{
+
+}
+
+//登录请求
+message LogReq{
+  string username =1; //默认为 JAKARobot01_Usr01
+  string password =2;//默认为 JAKARobot_gRPC logout时密码可为空
+}
+
+//通用枚举类型，虽然grpc原生支持枚举类型，但使用起来不是很方便故直接通过int类型替代，
+//相应的int值含义在rpc服务中说明
+message EnumType{
+  int32 typeid = 1;
+}
+
+//通用的gRPC调用回复
+message ExeReply {
+  int32 execode =1; // execode=0时，代表执行成功，否则返回错误代码
+  string errorstring= 2;// 当出现错误时，弹出文本框的内容。 protocolbuf中所有field都是optional，故正常执行成功时，此字符串为空
+}
+
+message RobotInfo{
+  string name=1;      //服务器端的机器人名称 如 JAKARobot01
+  string ipaddress=2; //格式为 XXX.XXX.XXX.XXX
+  string controllerid=3;		//用于标识控制器的唯一ID号
+}
+
+message PopUpdef{
+  int32  valid =1; //0 代表没有要显示的
+  string title =2; // 显示的标题
+  string content=3; //显示的内容
+}
+
+message JogConRequest {
+  int32 axis =1;  //指定的关节轴 基座--1 肩部--2 肘部--3 手腕1--4 手腕2--5 手腕3--6 以下出现的axis默认按此定义
+  float speed =2; //速度指令 -- 目前对应与slidebar的速度 范围 0~100 以下出现的speed默认按此定义
+  int32 coord =3; //0-->world coordinate, 1-->tool coordinate  
+}
+
+message JogIncrRequest {
+ //int32  jogmode =1; // obsolete 1==> joint jog, 0==> axis jog
+ int32  axis=2;
+ float  speed =3;
+ float  angle=4; //关节空间下的角度，如5 单位为度
+}
+
+message JogStopReq{
+ int32 axis=1;
+}
+
+message MovJReq {
+ jointpos dest =1; //关节运动的目标位置
+ float speed =2 ; //
+}
+
+message ServoJReq {
+ jointpos dest =1;  //关节运动的目标位置
+ float t = 2 ;      //time interval
+}
+
+message jointpos{
+ float joint1 =1; //关节空间下的角度
+ float joint2 =2;
+ float joint3 =3;
+ float joint4 =4;
+ float joint5 =5;
+ float joint6 =6;
+}
+
+message cartpos{
+  float x = 1;
+  float y = 2;
+  float z = 3;
+  float a = 4;
+  float b = 5;
+  float c = 6;
+}
+
+message Dout {
+ int32  doutid =1;   
+ int32  value  =2; // 0 or 1
+}
+
+message Aout {
+  int32 aoutid = 1;
+  double value = 2;
+}
+
+message ProgFile{
+  string path =1; //path 一般为 /PickAndPlace/Prog01.j  或者 Prog01.j
+}
+
+message ToolOffset{
+  double xoffset = 1;
+  double yoffset = 2;
+  double zoffset = 3;
+  double aoffset = 4;
+  double boffset = 5;
+  double coffset = 6;
+}
+
+message BoolState{
+  int32 boolVal = 1; // 1-->true, 0-->false
+}
+
+message JointLimitReq{
+
+  message JointLimit{
+	  int32 joint_id = 1;
+	  double positive_limit = 2;
+	  double negative_limit = 3;
+	}
+	
+	repeated JointLimit joint_limit = 1;
+}
+
+message TrajMaxVelReq{
+  double trajmaxvel = 1;
+}
+
+message VelRateReq{
+  double velrate = 1;
+}
+
+message InvKineReq{
+  cartpos world = 1;
+  jointpos currjoint = 2;
+}
+
+message FwdKineReq{
+  jointpos joints = 1;
+}
+
+message CheckMd5{
+  string file_name = 1;
+  string file_md5 = 2;
+}
+
+
+//×××××××××××××××××××××××××××××××××××grpc test message definition××××××××××××××××//
+// The request message containing the user's name.
+message HelloRequest {
+  string name = 1; //APP登录的ID 
+}
+
+// The response message containing the greetings
+message HelloReply {
+  string name = 1; 
+}
+
+message ErrorReply{
+  int32 errortype = 1;  // -1--> error; 0--> no error; 1-->info; 2 --> warning
+  int32 errorcode = 2;  
+  string errorstring = 3;
+}
+
+message FileReply{
+  string filename = 1;
+}
+
+message LineReply{
+  int32 linenum = 1;
+}
+
+message InvKineReply{
+  int32 res = 1;
+  jointpos joints = 2;
+}
+
+message FwdKineReply{
+  int32 res = 1;
+  cartpos world = 2;
+}
